@@ -42,10 +42,36 @@ db = SQLDatabase.from_uri(f"sqlite:///{database_file_path}")
 query_tool = QuerySQLDataBaseTool(db=db)
 
 # ----------------------------
-# Modern Prompt (Runnable)
+# OLD SQL-AGENT PROMPT (Your Original)
+# ----------------------------
+MSSQL_AGENT_PREFIX = """
+
+You are an agent designed to interact with a SQL database.
+
+## Instructions:
+- Given an input question, create a syntactically correct SQL query to run,
+  then look at the results of the query and return the answer.
+- Unless the user specifies a specific number of examples, ALWAYS limit to 30 rows.
+- ONLY select relevant columns, never SELECT *.
+- If a query fails, rewrite it and try again.
+- DO NOT execute INSERT, UPDATE, DELETE, DROP, or other destructive commands.
+- NEVER hallucinate table names — only use the tables that exist in the database.
+- NEVER add markdown backticks inside the SQL query itself.
+- Final answer must always contain:
+  - The SQL query used.
+  - The SQL result.
+  - An Explanation section showing how you arrived at the answer.
+- Always provide your SQL inside ```sql blocks in the final answer (but NOT during execution).
+- If the question is not related to the database, answer "I don't know".
+
+Your task: Convert the user's question into a SQL query that answers the question.
+"""
+
+# ----------------------------
+# Updated Prompt (Includes OLD logic)
 # ----------------------------
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a SQL expert. Use the SQL tool to answer the question."),
+    ("system", MSSQL_AGENT_PREFIX),
     ("human", "{question}")
 ])
 
@@ -60,7 +86,11 @@ sql_agent = RunnableSequence(
 )
 
 def clean_sql(sql_text: str) -> str:
-    return sql_text.replace("```sql", "").replace("```", "").strip()
+    return (
+        sql_text.replace("```sql", "")
+                .replace("```", "")
+                .strip()
+    )
 
 # ----------------------------
 # Ask a question
@@ -71,14 +101,27 @@ QUESTION = "What is the highest average salary by department?"
 sql_query = sql_agent.invoke({"question": f"{QUESTION}"})
 print("\nGenerated SQL query:\n", sql_query.content)
 
-# 2. Run SQL
+# 2. Clean & Execute SQL
 sql_query_clean = clean_sql(sql_query.content)
 sql_result = call_sql_tool(sql_query_clean)
 print("\nSQL Result:\n", sql_result)
 
-# 3. Ask LLM to summarize result
+# 3. Final Answer with SQL + results + explanation
+final_prompt = f"""
+Use the query and results below to produce the final answer.
+
+### SQL Query
+```sql
+{sql_query_clean}
+``` 
+### SQL Results
+{sql_result}
+### Final Answer
+final_answer = model.invoke(final_prompt)
+print("\nFinal Answer:\n", final_answer.content)
 final_answer = model.invoke(
     f"Here are the SQL results: {sql_result}. Provide the final answer."
 )
-
 print("\nFinal Answer:\n", final_answer.content)
+"""
+
