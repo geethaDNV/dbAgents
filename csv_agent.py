@@ -1,16 +1,27 @@
-from langchain.schema import HumanMessage, SystemMessage
+#from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 import pandas as pd
+import httpx
 
+os.environ["PYTHONHTTPSVERIFY"] = "0"
 # Load environment variables from .env file
 load_dotenv()
 
+http_client = httpx.Client(verify=False)
 openai_key = os.getenv("OPENAI_API_KEY")
 
-llm_name = "gpt-3.5-turbo"
-model = ChatOpenAI(api_key=openai_key, model=llm_name)
+#llm_name = "gpt-3.5-turbo"
+#model = ChatOpenAI(api_key=openai_key, model=llm_name)
+model = ChatOpenAI(
+    api_key=openai_key,
+    model="openai/gpt-4.1",
+    base_url="https://models.github.ai/inference",
+    http_client=http_client 
+)
+
 
 # read csv file
 df = pd.read_csv("./data/salaries_2023.csv").fillna(value=0)
@@ -26,6 +37,7 @@ agent = create_pandas_dataframe_agent(
     llm=model,
     df=df,
     verbose=True,
+     allow_dangerous_code=True
 )
 # res = agent.invoke("how many rows are there in the dataframe?")
 
@@ -73,7 +85,8 @@ st.write(df.head())
 st.write("### Ask a Question")
 question = st.text_input(
     "Enter your question about the dataset:",
-    "Which grade has the highest average base salary, and compare the average female pay vs male pay?",
+    "Which division has second highest salary under each department for each gender?"
+   # "Which grade has the highest average base salary, and compare the average female pay vs male pay?",
 )
 
 # Run the agent and display the result
