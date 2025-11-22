@@ -3,18 +3,26 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 import json
 from openai import OpenAI
+import httpx
 
 # Load environment variables from .env file
 load_dotenv()
+http_client = httpx.Client(verify=False)
 
 openai_key = os.getenv("OPENAI_API_KEY")
 
-llm_name = "gpt-3.5-turbo"  # use this cause is cheaper!
-model = ChatOpenAI(api_key=openai_key, model=llm_name)
+#llm_name = "gpt-3.5-turbo"  # use this cause is cheaper!
+#model = ChatOpenAI(api_key=openai_key, model=llm_name)
 
 # for the weather function calling
-client = OpenAI(api_key=openai_key)
+#client = OpenAI(api_key=openai_key)
 
+
+client = OpenAI(
+    api_key=openai_key,
+    base_url="https://models.github.ai/inference",
+    http_client=http_client 
+)
 
 # Example dummy function hard coded to return the same weather
 # In production, this could be your backend API or an external API
@@ -64,7 +72,7 @@ def run_conversation():
     ]
     # Call the model with the conversation and available functions
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="openai/gpt-4.1",
         messages=messages,
         tools=tools,
         tool_choice="auto",  # auto is default, but we'll be explicit
@@ -74,6 +82,8 @@ def run_conversation():
     print("tool calls: ", response_message.tool_calls)
 
     tool_calls = response_message.tool_calls
+
+    #return response_message
     # Step 2: check if the model wanted to call a function
     if tool_calls:
         # Step 3: call the function

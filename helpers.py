@@ -2,11 +2,11 @@ from sqlalchemy import create_engine, text
 import pandas as pd
 import numpy as np
 import json
+from langchain_community.utilities import SQLDatabase
 
 # Create an engine to connect to the SQLite database
 database_file_path = "./db/salary.db"
-engine = create_engine(f"sqlite:///{database_file_path}")
-
+sqlalchemy_engine = create_engine(f"sqlite:///{database_file_path}") 
 
 tools_sql = [
     {
@@ -116,7 +116,7 @@ def get_avg_salary_and_female_count_for_division(division_name):
         """
         query = text(query)
 
-        with engine.connect() as connection:
+        with sqlalchemy_engine.connect() as connection:
             result = pd.read_sql_query(query, connection)
         if not result.empty:
 
@@ -139,7 +139,7 @@ def get_total_overtime_pay_for_department(department_name):
         """
         query = text(query)
 
-        with engine.connect() as connection:
+        with sqlalchemy_engine.connect() as connection:
             result = pd.read_sql_query(query, connection)
         if not result.empty:
 
@@ -160,7 +160,7 @@ def get_employees_with_overtime_above(amount):
         """
         query = text(query)
 
-        with engine.connect() as connection:
+        with sqlalchemy_engine.connect() as connection:
             result = pd.read_sql_query(query, connection)
         if not result.empty:
             return result.to_dict("records")
@@ -181,7 +181,7 @@ def get_employee_count_by_gender_in_department(department_name):
         """
         query = text(query)
 
-        with engine.connect() as connection:
+        with sqlalchemy_engine.connect() as connection:
             result = pd.read_sql_query(query, connection)
         if not result.empty:
             return result.to_dict("records")
@@ -201,7 +201,7 @@ def get_total_longevity_pay_for_grade(grade):
         """
         query = text(query)
 
-        with engine.connect() as connection:
+        with sqlalchemy_engine.connect() as connection:
             result = pd.read_sql_query(query, connection)
         if not result.empty:
             return result.to_dict("records")[0]

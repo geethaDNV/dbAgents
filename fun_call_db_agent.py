@@ -3,13 +3,13 @@ import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 import pandas as pd
-
 from sqlalchemy import create_engine
 import numpy as np
 from sqlalchemy import text
 from openai import OpenAI
-
+import httpx
 import helpers
+
 from helpers import (
     get_avg_salary_and_female_count_for_division,
     get_total_overtime_pay_for_department,
@@ -21,18 +21,22 @@ from helpers import (
 
 # Load environment variables from .env file
 load_dotenv()
-
+http_client = httpx.Client(verify=False)
 openai_key = os.getenv("OPENAI_API_KEY")
 
 
-llm_name = "gpt-3.5-turbo"
+llm_name = "openai/gpt-4.1"
 model = ChatOpenAI(api_key=openai_key, model=llm_name)
 
 # for the weather function calling
-client = OpenAI(api_key=openai_key)
+#client = OpenAI(api_key=openai_key)
 
-from langchain.agents import create_sql_agent
-from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
+client = OpenAI(
+    api_key=openai_key,
+    base_url="https://models.github.ai/inference",
+    http_client=http_client 
+)
+
 from langchain_community.utilities import SQLDatabase
 
 # create a db from csv file
@@ -41,13 +45,15 @@ from langchain_community.utilities import SQLDatabase
 database_file_path = "./db/salary.db"
 
 
-# Create an engine to connect to the SQLite database
-# SQLite only requires the path to the database file
-engine = create_engine(f"sqlite:///{database_file_path}")
+# Create a SQLAlchemy engine for Pandas
+sqlalchemy_engine = create_engine(f"sqlite:///{database_file_path}")
+
+# Create a SQLDatabase object for LangChain
+engine = SQLDatabase.from_uri(f"sqlite:///{database_file_path}")
 file_url = "./data/salaries_2023.csv"
 os.makedirs(os.path.dirname(database_file_path), exist_ok=True)
 df = pd.read_csv(file_url).fillna(value=0)
-df.to_sql("salaries_2023", con=engine, if_exists="replace", index=False)
+df.to_sql("salaries_2023", con=sqlalchemy_engine, if_exists="replace", index=False)
 
 
 def run_conversation(
@@ -127,6 +133,7 @@ if __name__ == "__main__":
         run_conversation(
             query="""What is the total longevity pay for employees with the grade 'M3'?"""
         )
+        #run_conversation()
         .choices[0]
         .message.content
     )
